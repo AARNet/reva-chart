@@ -1,0 +1,24 @@
+{{- $label               := .Values.global.envLabel }}
+{{- $name                := .Release.Name }}
+{{- range $mode, $config := .Values.components }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: "reva-{{ $mode | lower }}"
+  labels:
+    {{ $label }}/ocis: "true"
+    {{ $label }}/ocis-id: {{ $name }}
+spec:
+  clusterIP: None
+  ports:
+    {{- range $key, $val := $config.ports }}
+    - name: {{ $key }}
+      port: {{ int $val }}
+      protocol: TCP
+    {{- end }}
+  selector:
+    app: "reva-{{ $mode | lower }}"
+    {{ $label }}/ocis: "true"
+    {{ $label }}/ocis-id: {{ $name }}
+---
+{{ end }}

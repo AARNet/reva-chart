@@ -1,0 +1,107 @@
+{{- $oidcAuth            := .Values.global.oidc.authority }}
+{{- $oidcClientId        := .Values.global.oidc.clientId }}
+{{- $oidcClientSecret    := .Values.global.oidc.clientSecret }}
+{{- $label               := .Values.global.envLabel }}
+{{- $regcred             := .Values.global.registrySecret.name }}
+{{- $name                := .Release.Name }}
+{{- $jwtSecret           := .Values.config.jwtSecret }}
+{{- $image               := .Values.config.image }}
+{{- $tag                 := .Values.config.tag }}
+{{- range $mode, $config := .Values.components }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "reva-{{ $mode | lower }}"
+  labels:
+    app: "reva-{{ $mode | lower }}"
+    {{ $label }}/ocis: "true"
+    {{ $label }}/ocis-id: {{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{ $label }}/ocis: "true"
+      {{ $label }}/ocis-id: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: "reva-{{ $mode | lower }}"
+        {{ $label }}/ocis: "true"
+        {{ $label }}/ocis-id: {{ $name }}
+    spec:
+      imagePullSecrets:
+        - name: {{ $regcred | quote }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ $label }}/ocis
+                operator: In
+                values:
+                - "true"
+      hostname: "reva-{{ $mode | lower }}"
+      subdomain: "reva-{{ $mode | lower }}"
+      containers:
+        - name: "reva-{{ $mode | lower }}"
+          image: "{{ $image }}:{{ $tag | toString }}"
+          imagePullPolicy: {{ .pullPolicy }}
+          ports:
+            {{- range $key, $val := $config.ports }}
+            - containerPort: {{ $val }}
+              name: {{ $key }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: MODE
+              value: {{ $mode | lower }}
+            - name: OIDC_ISSUER
+              value: "{{ $oidcAuth }}"
+            - name: OIDC_CLIENT_ID
+              value: "{{ $oidcClientId }}"
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ $oidcClientSecret }}"
+            - name: REVA_JWT_SECRET
+              value: "{{ $jwtSecret }}"
+            {{- if $config.config.storage }}
+            {{- if eq $config.config.storage "eos" }}
+            - name: STORAGE_DRIVER
+              value: {{ $config.config.storage }}
+            - name: EOS_NAMESPACE_PATH
+              value: "/eos/{{ $name }}"
+            - name: LDAP_ENABLED
+              value: "1"
+            {{- end }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config/
+            {{- if $config.config.storage }}
+            {{- if eq $config.config.storage "eos" }}
+            - name: eos-keytab
+              mountPath: /etc/k8screds/
+              readOnly: true
+            - name: ldap-conf
+              mountPath: /ldap/
+            {{- end }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: "reva-{{ $mode | lower }}-config"
+            defaultMode: 420
+        {{- if $config.config.storage }}
+        {{- if eq $config.config.storage "eos" }}
+        - name: eos-keytab
+          secret:
+            secretName: {{ $name }}-keytab
+            defaultMode: 384
+        - name: ldap-conf
+          configMap:
+            name: "nslcd-config"
+            defaultMode: 384
+        {{- end }}
+        {{- end }}
+---
+{{ end }}

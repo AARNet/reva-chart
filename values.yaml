@@ -1,0 +1,72 @@
+global:
+  envLabel: cdndev.aarnet.edu.au
+  ingress:
+    hostname: ocis.cdndev.aarnet.edu.au
+  registrySecret:
+    name: none
+  oidc:
+    clientId: "_a4ed458dd8b9455590e2200053544ac69176f2d9f5"
+    clientSecret: "_cd1cf8f6d243f367667658a3b98a5d207cfb2d5391"
+    redirectUri: "https://ocis.cdndev.aarnet.edu.au/phoenix/oidc-callback.html"
+    metadataUri: "https://ocis.cdndev.aarnet.edu.au/.well-known/openid-configuration"
+    authority: "https://ocis.cdndev.aarnet.edu.au"
+
+config:
+  jwtSecret: "wtflskjflisjflakd"
+  transferSecret: "wkajflsidjflaskdfja"
+  configurationServer: "https://ocis.cdndev.aarnet.edu.au/webdav/"
+  image: aplregistry.aarnet.edu.au/cloudservices/ocis/reva
+  tag: "202005210950"
+  pullPolicy: Always
+components:
+  frontend:
+    ports:
+      grpc: 20099
+      http: 20080
+    config:
+      snippets: 
+      - reva.http.middlewares.cors
+      - reva.http.services.ocdav
+      - reva.http.services.ocs
+      - reva.grpc.services.authprovider.oidc
+  gateway:
+    ports:
+      grpc: 19000
+      http: 19001
+    config:
+      snippets: 
+      - reva.grpc.services.gateway
+      - reva.grpc.services.authregistry
+      - reva.grpc.services.storageregistry
+      - reva.http.services.datagateway
+  shares:
+    ports:
+      grpc: 17000
+    config:
+      snippets: 
+      - reva.grpc.shareproviders
+  storageGlobal:
+    ports:
+      grpc: 11000
+      http: 11001
+    config:
+      snippets: 
+      - reva.storage.global.grpc.services.storageprovider
+      - reva.storage.global.http.services.dataprovider
+      storage: eos
+  storageHome:
+    ports:
+      grpc: 11100
+      http: 11101
+    config:
+      snippets: 
+      - reva.storage.home.grpc.services.storageprovider
+      - reva.storage.home.http.services.dataprovider
+      storage: eos
+  users:
+    ports:
+      grpc: 18000
+    config:
+      snippets: 
+      - reva.grpc.services.authprovider.ldap
+      - reva.grpc.services.userprovider

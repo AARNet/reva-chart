@@ -1,0 +1,32 @@
+{{- $label               := .Values.global.envLabel }}
+{{- $name                := .Release.Name }}
+{{- $jwtSecret           := .Values.config.jwtSecret }}
+{{- $revaGatewayPort     := .Values.components.gateway.ports }}
+{{- $revaFrontendPort    := .Values.components.frontend.ports }}
+{{- $revaUsersPort       := .Values.components.users.ports }}
+{{- $revaSharesPort      := .Values.components.shares.ports }}
+{{- range $mode, $config := .Values.components }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "reva-{{ $mode | lower }}-config"
+data:
+  reva.toml: |-
+    [log]
+    level = {{ $config.debugLevel | default "debug" | quote }}
+    mode = {{ $config.logFormat | default "console" | quote }}
+    
+    [shared]
+    jwt_secret = {{ $jwtSecret | quote }}
+    gatewaysvc = "reva-gateway:{{ $revaGatewayPort.grpc }}"
+    
+    [grpc]
+    address = "0.0.0.0:{{ $config.ports.grpc }}"
+    
+    [http]
+    address = "0.0.0.0:{{ $config.ports.http }}"
+    {{ range $config.config.snippets }}
+      {{- include . $ | indent 2 }}
+    {{ end }}
+---
+{{ end }}

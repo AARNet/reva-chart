@@ -1,0 +1,7 @@
+apiVersion: v1
+name: reva
+description: Deploy REVA for OCIS
+maintainers:
+  - name: apl-cloudstor
+  - email: apl-cloudstor@aarnet.edu.au
+version: 0.0.1
